@@ -109,17 +109,29 @@ def conv2d(x, W):
 def max_pool_2x2(x):
 	return tf.nn.max_pool(x, ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1], padding='SAME')
 
-def minibatch(inputs, targets, batchsize, shuffle=False):
-    assert len(inputs) == len(targets)
-    if shuffle:
-        indices = np.arange(len(inputs))
-        np.random.shuffle(indices)
-    for start_idx in range(0, len(inputs) - batchsize + 1, batchsize):
-        if shuffle:
-            excerpt = indices[start_idx:start_idx + batchsize]
-        else:
-            excerpt = slice(start_idx, start_idx + batchsize)
-        yield inputs[excerpt], targets[excerpt]
+def next_batch(batch_size):
+    """Return the next `batch_size` examples from this data set."""
+    index = 0
+    _epochs_completed = 0
+    _images = train_data
+    _labels = train_label
+    border = train_data.shape[0]
+    start = index
+    index += batch_size
+    if index > border:
+      # Finished epoch
+      _epochs_completed += 1
+      # Shuffle the data
+      perm = np.arange(border)
+      np.random.shuffle(perm)
+      _images = _images[perm]
+      _labels = _labels[perm]
+      # Start next epoch
+      start = 0
+      index = batch_size
+      assert batch_size <= border
+    end = index
+    return _images[start:end], _labels[start:end]
         
 # Create the model
 # placeholder
@@ -134,8 +146,6 @@ y_ = tf.placeholder("float", [None, 1568])
 # variables
 W = tf.Variable(tf.zeros([115000,1568]))
 b = tf.Variable(tf.zeros([1568]))
-#initial
-sess.run(tf.initialize_all_variables())
 
 y = tf.nn.softmax(tf.matmul(x,W) + b)
 
@@ -180,7 +190,7 @@ correct_prediction = tf.equal(tf.argmax(y_conv, 1), tf.argmax(y_, 1))
 accuracy = tf.reduce_mean(tf.cast(correct_prediction, "float"))
 sess.run(tf.initialize_all_variables())
 for i in range(20000):
-	batch = minibatch(train_data, train_label, 50)
+	batch = next_batch(50)
 	if i%100 == 0:
 		train_accuracy = accuracy.eval(feed_dict={x:batch[0], y_:batch[1], keep_prob:1.0})
 		print "step %d, train accuracy %g" %(i, train_accuracy)

@@ -1,6 +1,7 @@
+# -*- coding: utf-8 -*-
 # start tensorflow interactiveSession
 import tensorflow as tf
-#from PIL import Image
+from PIL import Image
 import numpy as np
 import os, sys
 
@@ -25,7 +26,7 @@ for i in range(0,len(train_fileAddress)-2):
     train_img = np.array(Image.open(train_imagepath), np.float32)
     
     #get the writer id (change num when path changed)
-    writer_num = int(train_fileAddress[i+2][79:83])
+    writer_num = int(train_fileAddress[i+2][70:74]) #79：83
     #print writer_num
     
     #initial a new matrix
@@ -48,29 +49,46 @@ for i in range(0,len(train_fileAddress)-2):
     pre_num = writer_num
     
 #print(data)
+np.save('train_data', train_data)
+np.save('train_label', train_label)
 
 test_path = "/Users/rongdilin/Desktop/cse610/Handwritten-and-data/Handprint/test"
 test_listFileName = os.popen('find ' + test_path)
 test_fileAddress = test_listFileName.readlines()
-test_data = [[0 for i in range(20000)] for j in range(test_fileAddress)]
-test_label = range(1, len(test_fileAddress))
-
-for i in range(0,test_fileAddress):
+test_data = [[0 for i in range(115000)] for j in range(len(test_fileAddress) - 2)]
+test_label = range(len(test_fileAddress) - 2)
+pre_num_test = 0
+writer_num_test = 0
+k_test = 0
+for i in range(0,len(test_fileAddress) - 2):
     test_imagepath = test_fileAddress[i+2][:-1]
     test_img = np.array(Image.open(test_imagepath), np.float32)
     
+    #get the writer id (change num when path changed)
+    writer_num_test = int(test_fileAddress[i+2][68:72]) #77：81
+    #print writer_num
+    
     #initial a new matrix
-    test_matrix = np.zeros((100, 200))
+    test_matrix = np.zeros((230, 500))
     test_matrix = test_matrix[test_img.shape[0], test_img.shape[1]] + test_img
-    test_matrix[test_img.shape[0] : 100, test_img.shape[1] : 200] += 255
+    test_matrix[test_img.shape[0] : 229, test_img.shape[1] : 499] += 255
     #flat matrix
     test_matrix = np.ravel(test_matrix)
     
     #regulariztion
     test_data[i] = np.multiply(test_matrix, 1.0 / 255.0)
     
+    #assign same label for img that has same id
+    if (writer_num_test == pre_num_test):
+        test_label[i] = k_test
+    else:
+        k_test = k_test+1
+        test_label[i] = k_test
+        
+    pre_num_test = writer_num_test
 
-
+np.save('test_data', test_data)
+np.save('test_label', test_label)
 #######################tensorflow###########
 
 sess = tf.InteractiveSession()
@@ -105,17 +123,17 @@ def minibatch(inputs, targets, batchsize, shuffle=False):
         
 # Create the model
 # placeholder
-#20000 is the dimensionality of a single flattened 100 by 200 pixel MNIST image, 
+#115000 is the dimensionality of a single flattened 230 by 500 pixel MNIST image, 
 #and None indicates that the first dimension, corresponding to the batch size, can be of any size. 
-x = tf.placeholder("float", [None, 20000])
+x = tf.placeholder("float", [None, 115000])
 #The target output classes y_ will also consist of a 2d tensor, where each row is a one-hot 
-#2-dimensional vector indicating which digit class (1 or 0) the corresponding whether character
+#1568-dimensional vector indicating which digit class (1 to 1568) the corresponding whether character
 #belongs to the same writer.
-y_ = tf.placeholder("float", [None, 2])
+y_ = tf.placeholder("float", [None, 1568])
 
 # variables
-W = tf.Variable(tf.zeros([20000,2]))
-b = tf.Variable(tf.zeros([2]))
+W = tf.Variable(tf.zeros([115000,1568]))
+b = tf.Variable(tf.zeros([1568]))
 #initial
 sess.run(tf.initialize_all_variables())
 
@@ -125,7 +143,7 @@ y = tf.nn.softmax(tf.matmul(x,W) + b)
 w_conv1 = weight_variable([5, 5, 1, 32])
 b_conv1 = bias_variable([32])
 
-x_image = tf.reshape(x, [-1, 100, 200, 1])
+x_image = tf.reshape(x, [-1, 230, 500, 1])
 
 h_conv1 = tf.nn.relu(conv2d(x_image, w_conv1) + b_conv1)
 h_pool1 = max_pool_2x2(h_conv1)
@@ -149,8 +167,8 @@ keep_prob = tf.placeholder("float")
 h_fc1_drop = tf.nn.dropout(h_fc1, keep_prob)
 
 # readout layer
-w_fc2 = weight_variable([1024, 2])
-b_fc2 = bias_variable([2])
+w_fc2 = weight_variable([1024, 1568])
+b_fc2 = bias_variable([1568])
 
 y_conv = tf.nn.softmax(tf.matmul(h_fc1_drop, w_fc2) + b_fc2)
 

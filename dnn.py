@@ -10,26 +10,39 @@ train_path = "/Users/rongdilin/Desktop/cse610/Handwritten-and-data/Handprint/ima
 train_listFileName = os.popen('find ' + train_path)
 train_fileAddress = train_listFileName.readlines()
 
-#create a matrix containing files numbers of matrix that size is [100, 200] all zero
-train_data = [[0 for i in range(20000)] for j in range(len(train_fileAddress))]
-train_label = range(1, len(train_fileAddress))
+#create a matrix containing files numbers of matrix that size is [230, 500] all zero
+train_data = [[0 for i in range(115000)] for j in range(len(train_fileAddress)-2)]
+train_label = range(len(train_fileAddress)-2)
 
 #print(data)
 #len(fileAddress)
-for i in range(0,train_fileAddress):
+pre_num == 0
+writer_num == 0
+k == 1
+for i in range(0,len(train_fileAddress)-2):
     #the end of each path has a /n so remove it 
     train_imagepath = train_fileAddress[i+2][:-1]
     train_img = np.array(Image.open(train_imagepath), np.float32)
     
+    #get the writer id (change num when path changed)
+    writer_num = train_fileAddress[i+2][79:83]
+    
     #initial a new matrix
-    train_matrix = np.zeros((100, 200))
+    train_matrix = np.zeros((230, 500))
     train_matrix = train_matrix[train_img.shape[0], train_img.shape[1]] + train_img
-    train_matrix[train_img.shape[0] : 100, train_img.shape[1] : 200] += 255
+    train_matrix[train_img.shape[0] : 229, train_img.shape[1] : 499] += 255
     #flat matrix
     train_matrix = np.ravel(train_matrix)
     
     #regulariztion
     train_data[i] = np.multiply(train_matrix, 1.0 / 255.0)
+    
+    #assign same label for img that has same id
+    if writer_num == pre_num:
+        train_label[i] = k
+    else:
+        train_label[i] = k+1
+    pre_num = writer_num
     
 #print(data)
 

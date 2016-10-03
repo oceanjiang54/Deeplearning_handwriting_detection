@@ -1,6 +1,6 @@
 # start tensorflow interactiveSession
 import tensorflow as tf
-from PIL import Image
+#from PIL import Image
 import numpy as np
 import os, sys
 
@@ -11,7 +11,7 @@ train_listFileName = os.popen('find ' + train_path)
 train_fileAddress = train_listFileName.readlines()
 
 #create a matrix containing files numbers of matrix that size is [100, 200] all zero
-train_data = [[0 for i in range(20000)] for j in range(train_fileAddress)]
+train_data = [[0 for i in range(20000)] for j in range(len(train_fileAddress))]
 train_label = range(1, len(train_fileAddress))
 
 #print(data)

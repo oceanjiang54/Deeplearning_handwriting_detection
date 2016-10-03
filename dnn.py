@@ -16,16 +16,17 @@ train_label = range(len(train_fileAddress)-2)
 
 #print(data)
 #len(fileAddress)
-pre_num == 0
-writer_num == 0
-k == 1
+pre_num = 0
+writer_num = 0
+k = 0
 for i in range(0,len(train_fileAddress)-2):
     #the end of each path has a /n so remove it 
     train_imagepath = train_fileAddress[i+2][:-1]
     train_img = np.array(Image.open(train_imagepath), np.float32)
     
     #get the writer id (change num when path changed)
-    writer_num = train_fileAddress[i+2][79:83]
+    writer_num = int(train_fileAddress[i+2][79:83])
+    #print writer_num
     
     #initial a new matrix
     train_matrix = np.zeros((230, 500))
@@ -38,10 +39,12 @@ for i in range(0,len(train_fileAddress)-2):
     train_data[i] = np.multiply(train_matrix, 1.0 / 255.0)
     
     #assign same label for img that has same id
-    if writer_num == pre_num:
+    if (writer_num == pre_num):
         train_label[i] = k
     else:
-        train_label[i] = k+1
+        k = k+1
+        train_label[i] = k
+        
     pre_num = writer_num
     
 #print(data)

@@ -30,9 +30,8 @@ for i in range(0,len(train_fileAddress)-2):
     #print writer_num
     
     #initial a new matrix
-    train_matrix = np.zeros((230, 500))
-    train_matrix = train_matrix[train_img.shape[0], train_img.shape[1]] + train_img
-    train_matrix[train_img.shape[0] : 229, train_img.shape[1] : 499] += 255
+    train_matrix = 255 * np.ones((230, 500))
+    train_matrix[:train_img.shape[0], :train_img.shape[1]] = train_img
     #flat matrix
     train_matrix = np.ravel(train_matrix)
     
@@ -69,9 +68,9 @@ for i in range(0,len(test_fileAddress) - 2):
     #print writer_num
     
     #initial a new matrix
-    test_matrix = np.zeros((230, 500))
-    test_matrix = test_matrix[test_img.shape[0], test_img.shape[1]] + test_img
-    test_matrix[test_img.shape[0] : 229, test_img.shape[1] : 499] += 255
+    test_matrix = 255 * np.ones((230, 500))
+    test_matrix[:test_img.shape[0], :test_img.shape[1]] = test_img
+    
     #flat matrix
     test_matrix = np.ravel(test_matrix)
     

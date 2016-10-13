@@ -3,20 +3,18 @@
 import tensorflow as tf
 from PIL import Image
 import numpy as np
-import os, sys
+import os
 
-'''the size of image is 100 * 200'''
+'''the size of image is 230 * 500'''
 
 train_path = "/Users/rongdilin/Desktop/cse610/Handwritten-and-data/Handprint/images"
 train_listFileName = os.popen('find ' + train_path)
 train_fileAddress = train_listFileName.readlines()
 
 #create a matrix containing files numbers of matrix that size is [230, 500] all zero
-train_data = [[0 for i in range(115000)] for j in range(len(train_fileAddress)-2)]
+train_data = np.array([[0 for i in range(115000)] for j in range(len(train_fileAddress)-2)])
 train_label = range(len(train_fileAddress)-2)
 
-#print(data)
-#len(fileAddress)
 pre_num = 0
 writer_num = 0
 k = 0
@@ -27,7 +25,6 @@ for i in range(0,len(train_fileAddress)-2):
     
     #get the writer id (change num when path changed)
     writer_num = int(train_fileAddress[i+2][70:74]) #79：83
-    #print writer_num
     
     #initial a new matrix
     train_matrix = 255 * np.ones((230, 500))
@@ -40,21 +37,32 @@ for i in range(0,len(train_fileAddress)-2):
     
     #assign same label for img that has same id
     if (writer_num == pre_num):
-        train_label[i] = k
+        train_label[i] = k + 1
     else:
-        k = k+1
+        #k = k+1
         train_label[i] = k
         
     pre_num = writer_num
     
-#print(data)
-np.save('train_data', train_data)
-np.save('train_label', train_label)
+#put two img into one, the size is 460 * 1000
+final_data = [[0 for i in range(460000)] for j in range(len(train_data)-1)]
+final_label = range(len(train_data - 1))
+
+for j in range(1, len(train_data)):
+    final_data[j] = np.append(train_data[j - 1], train_data[j])
+    print(final_data[j])
+    if train_label[j - 1] == train_label[j]:
+        final_label[j] = k + 1
+    else:
+        final_label[j] = k
+#np.save('train_data', train_data)
+#np.save('train_label', train_label)
+
 
 test_path = "/Users/rongdilin/Desktop/cse610/Handwritten-and-data/Handprint/test"
 test_listFileName = os.popen('find ' + test_path)
 test_fileAddress = test_listFileName.readlines()
-test_data = [[0 for i in range(115000)] for j in range(len(test_fileAddress) - 2)]
+test_data = np.array([[0 for i in range(115000)] for j in range(len(test_fileAddress) - 2)])
 test_label = range(len(test_fileAddress) - 2)
 pre_num_test = 0
 writer_num_test = 0
@@ -86,8 +94,10 @@ for i in range(0,len(test_fileAddress) - 2):
         
     pre_num_test = writer_num_test
 
-np.save('test_data', test_data)
-np.save('test_label', test_label)
+#np.save('test_data', test_data)
+#np.save('test_label', test_label)
+
+
 #######################tensorflow###########
 
 sess = tf.InteractiveSession()
@@ -111,15 +121,12 @@ def max_pool_2x2(x):
 def next_batch(batch_size):
     """Return the next `batch_size` examples from this data set."""
     index = 0
-    _epochs_completed = 0
     _images = train_data
     _labels = train_label
     border = train_data.shape[0]
     start = index
     index += batch_size
     if index > border:
-      # Finished epoch
-      _epochs_completed += 1
       # Shuffle the data
       perm = np.arange(border)
       np.random.shuffle(perm)
@@ -138,13 +145,13 @@ def next_batch(batch_size):
 #and None indicates that the first dimension, corresponding to the batch size, can be of any size. 
 x = tf.placeholder("float", [None, 115000])
 #The target output classes y_ will also consist of a 2d tensor, where each row is a one-hot 
-#1568-dimensional vector indicating which digit class (1 to 1568) the corresponding whether character
+#2-dimensional vector indicating which digit class (0 to 1) the corresponding whether character
 #belongs to the same writer.
-y_ = tf.placeholder("float", [None, 1568])
+y_ = tf.placeholder("float", [None, 2])
 
 # variables
-W = tf.Variable(tf.zeros([115000,1568]))
-b = tf.Variable(tf.zeros([1568]))
+W = tf.Variable(tf.zeros([115000,2]))
+b = tf.Variable(tf.zeros([2]))
 
 y = tf.nn.softmax(tf.matmul(x,W) + b)
 
@@ -176,8 +183,8 @@ keep_prob = tf.placeholder("float")
 h_fc1_drop = tf.nn.dropout(h_fc1, keep_prob)
 
 # readout layer
-w_fc2 = weight_variable([1024, 1568])
-b_fc2 = bias_variable([1568])
+w_fc2 = weight_variable([1024, 2])
+b_fc2 = bias_variable([2])
 
 y_conv = tf.nn.softmax(tf.matmul(h_fc1_drop, w_fc2) + b_fc2)
 
@@ -188,13 +195,23 @@ train_step = tf.train.GradientDescentOptimizer(1e-3).minimize(cross_entropy)
 correct_prediction = tf.equal(tf.argmax(y_conv, 1), tf.argmax(y_, 1))
 accuracy = tf.reduce_mean(tf.cast(correct_prediction, "float"))
 sess.run(tf.initialize_all_variables())
-for i in range(20000):
-	batch = next_batch(50)
-	if i%100 == 0:
-	        feed_dict={x:batch[0], y_:batch[1], keep_prob:1.0}
-	        #print(feed_dict)
-		train_accuracy = accuracy.eval(feed_dict)
-		print "step %d, train accuracy %g" %(i, train_accuracy)
-	train_step.run(feed_dict={x:batch[0], y_:batch[1], keep_prob:0.5})
 
+
+
+for i in range(1000):
+	batch_xs, batch_ys = next_batch(100)
+	
+	if i%100 == 0:
+	    print(np.shape(batch_xs))
+	    print(np.shape(batch_ys))
+
+	    
+	    #batch_xs (100, 115000)
+	    #batch_ys()??   label is a vector(15310,)
+	    sess.run(train_step, feed_dict={x: batch_xs, y_: batch_ys})
+
+            train_accuracy = accuracy.eval(feed_dict={x: batch_xs, y_: batch_ys, keep_prob: 1.0})
+                
+        print "step %d, train accuracy %g" %(i, train_accuracy)
+        train_step.run(feed_dict={x:batch_xs, y_:batch_ys, keep_prob:0.5})
 print "test accuracy %g" % accuracy.eval(feed_dict={x:test_data, y_:test_label, keep_prob:1.0})

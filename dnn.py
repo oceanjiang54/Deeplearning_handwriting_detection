@@ -12,8 +12,8 @@ train_listFileName = os.popen('find ' + train_path)
 train_fileAddress = train_listFileName.readlines()
 
 #create a matrix containing files numbers of matrix that size is [230, 500] all zero
-train_data = np.array([[0 for i in range(115000)] for j in range(len(train_fileAddress)-2)], dtype=float)
-train_label = np.ones((len(train_fileAddress)-2, 1), dtype=float)
+train_data = np.array([[0 for i in range(115000)] for j in range(len(train_fileAddress)-2)])
+train_label = np.ones((len(train_fileAddress)-2, 1))
 
 pre_num = 0
 writer_num = 0
@@ -44,6 +44,8 @@ for i in range(0,len(train_fileAddress)-2):
         
     pre_num = writer_num
     
+train_data = train_data.astype("float32")
+train_label = train_label.astype("float32")    
 #put two img into one, the size is 460 * 1000
 #final_data = [[0 for i in range(460000)] for j in range(len(train_data)-1)]
 #final_label = range(len(train_data - 1))
@@ -62,8 +64,8 @@ np.save('train_label', train_label)
 test_path = "/Users/rongdilin/Desktop/cse610/Handwritten-and-data/Handprint/test"
 test_listFileName = os.popen('find ' + test_path)
 test_fileAddress = test_listFileName.readlines()
-test_data = np.array([[0 for i in range(115000)] for j in range(len(test_fileAddress) - 2)], dtype=float)
-test_label = np.ones((len(test_fileAddress)-2, 1), dtype=float)
+test_data = np.array([[0 for i in range(115000)] for j in range(len(test_fileAddress) - 2)])
+test_label = np.ones((len(test_fileAddress)-2, 1))
 pre_num_test = 0
 writer_num_test = 0
 k_test = 0
@@ -89,17 +91,19 @@ for i in range(0,len(test_fileAddress) - 2):
     if (writer_num_test == pre_num_test):
         test_label[i] = k_test
     else:
-        k_test = k_test+1
+        #k_test = k_test+1
         test_label[i] = k_test
         
     pre_num_test = writer_num_test
-
+    
+test_data = test_data.astype("float32")
+test_label = test_label.astype("float32") 
 np.save('test_data', test_data)
 np.save('test_label', test_label)
 
 
 #######################tensorflow###########
-
+tf.reset_default_graph()
 sess = tf.InteractiveSession()
 
 # weight initialization
@@ -118,27 +122,44 @@ def conv2d(x, W):
 def max_pool_2x2(x):
 	return tf.nn.max_pool(x, ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1], padding='SAME')
 
-def next_batch(batch_size):
+def next_batch(index, batch_size):
     """Return the next `batch_size` examples from this data set."""
-    index = 0
+    #index = 0
     _images = train_data
     _labels = train_label
     border = train_data.shape[0]
     start = index
     index += batch_size
-    if index > border:
-      # Shuffle the data
-      perm = np.arange(border)
-      np.random.shuffle(perm)
-      _images = _images[perm]
-      _labels = _labels[perm]
-      # Start next epoch
-      start = 0
-      index = batch_size
-      assert batch_size <= border
+    #if index > border:
+    #  # Shuffle the data
+    #  perm = np.arange(border)
+    #  np.random.shuffle(perm)
+    #  _images = _images[perm]
+    #  _labels = _labels[perm]
+    #  # Start next epoch
+    #  start = 0
+    #  index = batch_size
+    #  assert batch_size <= border
     end = index
     return _images[start:end], _labels[start:end]
-        
+    
+def data_iterator():
+    """ A simple data iterator """
+    batch_idx = 0
+    while True:
+        # shuffle labels and features
+        idxs = np.arange(0, len(train_data))
+        np.random.shuffle(idxs)
+        shuf_features = train_data[idxs]
+        shuf_labels = train_label[idxs]
+        batch_size = 128
+        for batch_idx in range(0, len(train_data), batch_size):
+            images_batch = shuf_features[batch_idx:batch_idx+batch_size] #/ 255.
+            images_batch = images_batch.astype("float32")
+            labels_batch = shuf_labels[batch_idx:batch_idx+batch_size]
+            labels_batch = labels_batch.astype("float32")
+            yield images_batch, labels_batch    
+                
 # Create the model
 # placeholder
 #115000 is the dimensionality of a single flattened 230 by 500 pixel MNIST image, 
@@ -199,9 +220,16 @@ sess.run(tf.initialize_all_variables())
 
 
 for i in range(1000):
-	batch_xs, batch_ys = next_batch(100)
-	
-	if i%100 == 0:
+	#batch_xs, batch_ys = next_batch(i, 100)
+	iter_ = data_iterator()
+        while True:
+            # get a batch of data
+            batch_xs, batch_ys = iter_.next()
+            print (np.shape(batch_xs))
+            print(np.shape(batch_ys))
+            
+            
+	#if i%100 == 0:
 	    #print(np.shape(batch_xs))
 	    #print(np.shape(batch_ys))
 	    #batch_xs (100, 115000)
@@ -210,6 +238,6 @@ for i in range(1000):
 
             train_accuracy = accuracy.eval(feed_dict={x: batch_xs, y_: batch_ys, keep_prob: 1.0})
                 
-        print "step %d, train accuracy %g" %(i, train_accuracy)
-        train_step.run(feed_dict={x:batch_xs, y_:batch_ys, keep_prob:0.5})
+            print "step %d, train accuracy %g" %(i, train_accuracy)
+            train_step.run(feed_dict={x:batch_xs, y_:batch_ys, keep_prob:0.5})
 print "test accuracy %g" % accuracy.eval(feed_dict={x:test_data, y_:test_label, keep_prob:1.0})

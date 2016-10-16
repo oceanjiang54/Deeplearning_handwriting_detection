@@ -44,8 +44,8 @@ for i in range(0,len(train_fileAddress)-2):
         
     pre_num = writer_num
     
-train_data = train_data.astype("float32")
-train_label = train_label.astype("float32")    
+train_data = train_data.astype(np.float32)
+train_label = train_label.astype(np.float32)    
 #put two img into one, the size is 460 * 1000
 #final_data = [[0 for i in range(460000)] for j in range(len(train_data)-1)]
 #final_label = range(len(train_data - 1))
@@ -96,15 +96,14 @@ for i in range(0,len(test_fileAddress) - 2):
         
     pre_num_test = writer_num_test
     
-test_data = test_data.astype("float32")
-test_label = test_label.astype("float32") 
+test_data = test_data.astype(np.float32)
+test_label = test_label.astype(np.float32) 
 np.save('test_data', test_data)
 np.save('test_label', test_label)
 
 
 #######################tensorflow###########
-tf.reset_default_graph()
-sess = tf.InteractiveSession()
+
 
 # weight initialization
 def weight_variable(shape):
@@ -155,16 +154,21 @@ def data_iterator():
         batch_size = 128
         for batch_idx in range(0, len(train_data), batch_size):
             images_batch = shuf_features[batch_idx:batch_idx+batch_size] #/ 255.
-            images_batch = images_batch.astype("float32")
+            images_batch = images_batch.astype(np.float32)
             labels_batch = shuf_labels[batch_idx:batch_idx+batch_size]
-            labels_batch = labels_batch.astype("float32")
+            labels_batch = labels_batch.astype(np.float32)
             yield images_batch, labels_batch    
                 
 # Create the model
 # placeholder
 #115000 is the dimensionality of a single flattened 230 by 500 pixel MNIST image, 
 #and None indicates that the first dimension, corresponding to the batch size, can be of any size. 
+#reset the memory
+tf.reset_default_graph()
+sess = tf.InteractiveSession()
+
 x = tf.placeholder("float", [None, 115000])
+#print(x.dtype)
 #The target output classes y_ will also consist of a 2d tensor, where each row is a one-hot 
 #2-dimensional vector indicating which digit class (0 to 1) the corresponding whether character
 #belongs to the same writer.
@@ -173,6 +177,7 @@ y_ = tf.placeholder("float", [None, 1])
 # variables
 W = tf.Variable(tf.zeros([115000,1]))
 b = tf.Variable(tf.zeros([1]))
+
 
 y = tf.nn.softmax(tf.matmul(x,W) + b)
 
@@ -193,10 +198,10 @@ h_conv2 = tf.nn.relu(conv2d(h_pool1, w_conv2) + b_conv2)
 h_pool2 = max_pool_2x2(h_conv2)
 
 # densely connected layer
-w_fc1 = weight_variable([7*7*64, 1024])
+w_fc1 = weight_variable([29*250*64, 1024])
 b_fc1 = bias_variable([1024])
 
-h_pool2_flat = tf.reshape(h_pool2, [-1, 7*7*64])
+h_pool2_flat = tf.reshape(h_pool2, [-1, 29*250*64])
 h_fc1 = tf.nn.relu(tf.matmul(h_pool2_flat, w_fc1) + b_fc1)
 
 # dropout
@@ -215,27 +220,32 @@ train_step = tf.train.GradientDescentOptimizer(1e-3).minimize(cross_entropy)
 #train_step = tf.train.AdagradOptimizer(1e-5).minimize(cross_entropy)
 correct_prediction = tf.equal(tf.argmax(y_conv, 1), tf.argmax(y_, 1))
 accuracy = tf.reduce_mean(tf.cast(correct_prediction, "float"))
+
 sess.run(tf.initialize_all_variables())
 
-
-
 for i in range(1000):
-	#batch_xs, batch_ys = next_batch(i, 100)
-	iter_ = data_iterator()
-        while True:
-            # get a batch of data
-            batch_xs, batch_ys = iter_.next()
-            print (np.shape(batch_xs))
-            print(np.shape(batch_ys))
+	    batch_xs, batch_ys = next_batch(i, 100)
+	    batch_xs = batch_xs.astype(np.float32)
+	    batch_ys = batch_ys.astype(np.float32)
+	#iter_ = data_iterator()
+ #       while True:
+ #           # get a batch of data
+ #           batch_xs, batch_ys = iter_.next()
+ #           print (np.shape(batch_xs))
+ #           print(np.shape(batch_ys))
+ #           
             
-            
-	#if i%100 == 0:
-	    #print(np.shape(batch_xs))
-	    #print(np.shape(batch_ys))
-	    #batch_xs (100, 115000)
-	    #batch_ys()??   label is a vector(15310,)
-	    sess.run(train_step, feed_dict={x: batch_xs, y_: batch_ys})
+	    if i%100 == 0:
+              train_accuracy = accuracy.eval(feed_dict={
+        x:batch_xs, y_: batch_ys, keep_prob: 1.0})
+              print("step %d, training accuracy %g"%(i, train_accuracy))
+            train_step.run(feed_dict={x: batch_xs, y_: batch_ys, keep_prob: 0.5})
 
+	    #feed_dict={x: batch_xs, y_: batch_ys}
+	    #print(feed_dict)
+
+	    #sess.run(train_step, feed_dict)
+	    #train_step.run(feed_dict)
             train_accuracy = accuracy.eval(feed_dict={x: batch_xs, y_: batch_ys, keep_prob: 1.0})
                 
             print "step %d, train accuracy %g" %(i, train_accuracy)

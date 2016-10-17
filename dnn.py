@@ -147,6 +147,47 @@ np.save('test_label', test_label)
 #    end = index
 #    return _images[start:end], _labels[start:end]
 #    
+
+#def next_batch(index, batch_size):
+#    """Return the next `batch_size` examples from this data set."""
+#    #index = 0
+#    _images = train_data
+#    _labels = train_label
+#    border = train_data.shape[0]
+#    start = index
+#    index += batch_size
+#    if index > border:
+    #  # Shuffle the data
+    #  perm = np.arange(border)
+    #  np.random.shuffle(perm)
+    #  _images = _images[perm]
+    #  _labels = _labels[perm]
+    #  # Start next epoch
+    #  start = 0
+    #  index = batch_size
+    #  assert batch_size <= border
+#    end = index
+#    temp_data = _images[start:end]
+#    temp_labels =  _labels[start:end]
+    
+#    final_data = [[0 for i in range(230000)] for j in range(len(temp_data)* len(temp_data))]
+#    final_label = range(len(temp_data) * len(temp_data))
+
+#    count = 0
+#    k = 0
+#    for i in range(0, len(temp_data)):
+#        for j in range(0, len(temp_data)):
+#            final_data[count] = [temp_data[i] + temp_data[j]]
+            #print(final_data[j])
+            #print(i)
+        
+#            if temp_labels[i] == temp_labels[j]:
+#                final_label[count] = k + 1
+#            else:
+#                final_label[count] = k
+    
+#    return final_data, final_label
+
 #def data_iterator():
 #    """ A simple data iterator """
 #    batch_idx = 0

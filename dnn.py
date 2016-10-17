@@ -47,23 +47,9 @@ for i in range(0,len(train_fileAddress)-2):
 train_data = train_data.astype(np.float32)
 train_label = train_label.astype(np.float32)    
 
-#put two img into one, the size is 230 * 1000
-final_data = [[0 for i in range(230000)] for j in range(len(train_data)* len(train_data))]
-final_label = range(len(train_data) * len(train_data))
-count = 0
-k = 0
-for i in range(0, len(train_data)):
-    for j in range(0, len(train_data)):
-        final_data[count] = [train_data[i] + train_data[j]]
-        #print(final_data[j])
-        print(i)
-        
-        if train_label[i] == train_label[j]:
-            final_label[count] = k + 1
-        else:
-            final_label[count] = k
-np.save('train_data', final_data)
-np.save('train_label', final_label)
+
+np.save('train_data', train_data)
+np.save('train_label', train_label)
 
 
 test_path = "/Users/rongdilin/Desktop/cse610/Handwritten-and-data/Handprint/test"
@@ -110,190 +96,167 @@ np.save('test_label', test_label)
 #######################tensorflow###########
 
 
-## weight initialization
-#def weight_variable(shape):
-#	initial = tf.truncated_normal(shape, stddev=0.1)
-#	return tf.Variable(initial)
-#
-#def bias_variable(shape):
-#	initial = tf.constant(0.1, shape = shape)
-#	return tf.Variable(initial)
-#
-## convolution
-#def conv2d(x, W):
-#	return tf.nn.conv2d(x, W, strides=[1, 1, 1, 1], padding='SAME')
-## pooling
-#def max_pool_2x2(x):
-#	return tf.nn.max_pool(x, ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1], padding='SAME')
-#
-#def next_batch(index, batch_size):
-#    """Return the next `batch_size` examples from this data set."""
-#    #index = 0
-#    _images = train_data
-#    _labels = train_label
-#    border = train_data.shape[0]
-#    start = index
-#    index += batch_size
-#    #if index > border:
-#    #  # Shuffle the data
-#    #  perm = np.arange(border)
-#    #  np.random.shuffle(perm)
-#    #  _images = _images[perm]
-#    #  _labels = _labels[perm]
-#    #  # Start next epoch
-#    #  start = 0
-#    #  index = batch_size
-#    #  assert batch_size <= border
-#    end = index
-#    return _images[start:end], _labels[start:end]
-#    
+# weight initialization
+def weight_variable(shape):
+	initial = tf.truncated_normal(shape, stddev=0.1)
+	return tf.Variable(initial)
 
-#def next_batch(index, batch_size):
-#    """Return the next `batch_size` examples from this data set."""
-#    #index = 0
-#    _images = train_data
-#    _labels = train_label
-#    border = train_data.shape[0]
-#    start = index
-#    index += batch_size
-#    if index > border:
-    #  # Shuffle the data
-    #  perm = np.arange(border)
-    #  np.random.shuffle(perm)
-    #  _images = _images[perm]
-    #  _labels = _labels[perm]
-    #  # Start next epoch
-    #  start = 0
-    #  index = batch_size
-    #  assert batch_size <= border
-#    end = index
-#    temp_data = _images[start:end]
-#    temp_labels =  _labels[start:end]
+def bias_variable(shape):
+	initial = tf.constant(0.1, shape = shape)
+	return tf.Variable(initial)
+
+# convolution
+def conv2d(x, W):
+	return tf.nn.conv2d(x, W, strides=[1, 1, 1, 1], padding='SAME')
+# pooling
+def max_pool_2x2(x):
+	return tf.nn.max_pool(x, ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1], padding='SAME')
+
+def next_batch(index, batch_size):
+    """Return the next `batch_size` examples from this data set."""
+    #index = 0
+    _images = train_data
+    _labels = train_label
+    border = train_data.shape[0]
+    start = index
+    index += batch_size
+    if index > border:
+      # Shuffle the data
+      perm = np.arange(border)
+      np.random.shuffle(perm)
+      _images = _images[perm]
+      _labels = _labels[perm]
+      # Start next epoch
+      start = 0
+      index = batch_size
+      assert batch_size <= border
+    end = index
     
-#    final_data = [[0 for i in range(230000)] for j in range(len(temp_data)* len(temp_data))]
-#    final_label = range(len(temp_data) * len(temp_data))
-
-#    count = 0
-#    k = 0
-#    for i in range(0, len(temp_data)):
-#        for j in range(0, len(temp_data)):
-#            final_data[count] = [temp_data[i] + temp_data[j]]
+    #put two img into one, the size is 230 * 1000
+    final_data = np.array([[0 for i in range(230000)] for j in range(batch_size * batch_size)])
+    final_label = np.ones((batch_size * batch_size,1))
+    count = 0
+    k = 0
+    #print(k)
+    for i in range(start, batch_size):
+        for j in range(start, batch_size):
+            final_data[count] = np.append(train_data[i], train_data[j])
             #print(final_data[j])
-            #print(i)
+            print(i)
         
-#            if temp_labels[i] == temp_labels[j]:
-#                final_label[count] = k + 1
-#            else:
-#                final_label[count] = k
+            if train_label[i] == train_label[j]:
+                final_label[count] = k + 1
+            else:
+                final_label[count] = k
+    #return _images[start:end], _labels[start:end]
+    return final_data, final_label            
     
-#    return final_data, final_label
+def data_iterator():
+    """ A simple data iterator """
+    batch_idx = 0
+    while True:
+        # shuffle labels and features
+        idxs = np.arange(0, len(train_data))
+        np.random.shuffle(idxs)
+        shuf_features = train_data[idxs]
+        shuf_labels = train_label[idxs]
+        batch_size = 128
+        for batch_idx in range(0, len(train_data), batch_size):
+            images_batch = shuf_features[batch_idx:batch_idx+batch_size] #/ 255.
+            images_batch = images_batch.astype(np.float32)
+            labels_batch = shuf_labels[batch_idx:batch_idx+batch_size]
+            labels_batch = labels_batch.astype(np.float32)
+            yield images_batch, labels_batch    
+                
+# Create the model
+# placeholder
+#115000 is the dimensionality of a single flattened 230 by 500 pixel MNIST image, 
+#and None indicates that the first dimension, corresponding to the batch size, can be of any size. 
+#reset the memory
+tf.reset_default_graph()
+sess = tf.InteractiveSession()
 
-#def data_iterator():
-#    """ A simple data iterator """
-#    batch_idx = 0
-#    while True:
-#        # shuffle labels and features
-#        idxs = np.arange(0, len(train_data))
-#        np.random.shuffle(idxs)
-#        shuf_features = train_data[idxs]
-#        shuf_labels = train_label[idxs]
-#        batch_size = 128
-#        for batch_idx in range(0, len(train_data), batch_size):
-#            images_batch = shuf_features[batch_idx:batch_idx+batch_size] #/ 255.
-#            images_batch = images_batch.astype(np.float32)
-#            labels_batch = shuf_labels[batch_idx:batch_idx+batch_size]
-#            labels_batch = labels_batch.astype(np.float32)
-#            yield images_batch, labels_batch    
-#                
-## Create the model
-## placeholder
-##115000 is the dimensionality of a single flattened 230 by 500 pixel MNIST image, 
-##and None indicates that the first dimension, corresponding to the batch size, can be of any size. 
-##reset the memory
-#tf.reset_default_graph()
-#sess = tf.InteractiveSession()
-#
-#x = tf.placeholder("float", [None, 230000])
-##print(x.dtype)
-##The target output classes y_ will also consist of a 2d tensor, where each row is a one-hot 
-##2-dimensional vector indicating which digit class (0 to 1) the corresponding whether character
-##belongs to the same writer.
-#y_ = tf.placeholder("float", [None, 1])
-#
-## variables
-#W = tf.Variable(tf.zeros([230000,1]))
-#b = tf.Variable(tf.zeros([1]))
-#
-#
-#y = tf.nn.softmax(tf.matmul(x,W) + b)
-#
-## first convolutinal layer
-#w_conv1 = weight_variable([5, 5, 1, 32])
-#b_conv1 = bias_variable([32])
-#
-#x_image = tf.reshape(x, [-1, 230, 1000, 1])
-#
-#h_conv1 = tf.nn.relu(conv2d(x_image, w_conv1) + b_conv1)
-#h_pool1 = max_pool_2x2(h_conv1)
-#
-## second convolutional layer
-#w_conv2 = weight_variable([5, 5, 32, 64])
-#b_conv2 = bias_variable([64])
-#
-#h_conv2 = tf.nn.relu(conv2d(h_pool1, w_conv2) + b_conv2)
-#h_pool2 = max_pool_2x2(h_conv2)
-#
-## densely connected layer
-#w_fc1 = weight_variable([29*250*64, 1024])
-#b_fc1 = bias_variable([1024])
-#
-#h_pool2_flat = tf.reshape(h_pool2, [-1, 29*250*64])
-#h_fc1 = tf.nn.relu(tf.matmul(h_pool2_flat, w_fc1) + b_fc1)
-#
-## dropout
-#keep_prob = tf.placeholder("float")
-#h_fc1_drop = tf.nn.dropout(h_fc1, keep_prob)
-#
-## readout layer
-#w_fc2 = weight_variable([1024, 1])
-#b_fc2 = bias_variable([1])
-#
-#y_conv = tf.nn.softmax(tf.matmul(h_fc1_drop, w_fc2) + b_fc2)
-#
-## train and evaluate the model
-#cross_entropy = -tf.reduce_sum(y_*tf.log(y_conv))
-#train_step = tf.train.GradientDescentOptimizer(1e-3).minimize(cross_entropy)
-##train_step = tf.train.AdagradOptimizer(1e-5).minimize(cross_entropy)
-#correct_prediction = tf.equal(tf.argmax(y_conv, 1), tf.argmax(y_, 1))
-#accuracy = tf.reduce_mean(tf.cast(correct_prediction, "float"))
-#
-#sess.run(tf.initialize_all_variables())
-#
-#for i in range(1000):
-#	    batch_xs, batch_ys = next_batch(i, 100)
-#	    batch_xs = batch_xs.astype(np.float32)
-#	    batch_ys = batch_ys.astype(np.float32)
-#	#iter_ = data_iterator()
-# #       while True:
-# #           # get a batch of data
-# #           batch_xs, batch_ys = iter_.next()
-# #           print (np.shape(batch_xs))
-# #           print(np.shape(batch_ys))
-# #           
-#            
-#	    if i%100 == 0:
-#              train_accuracy = accuracy.eval(feed_dict={
-#        x:batch_xs, y_: batch_ys, keep_prob: 1.0})
-#              print("step %d, training accuracy %g"%(i, train_accuracy))
-#            train_step.run(feed_dict={x: batch_xs, y_: batch_ys, keep_prob: 0.5})
-#
-#	    #feed_dict={x: batch_xs, y_: batch_ys}
-#	    #print(feed_dict)
-#
-#	    #sess.run(train_step, feed_dict)
-#	    #train_step.run(feed_dict)
-#            train_accuracy = accuracy.eval(feed_dict={x: batch_xs, y_: batch_ys, keep_prob: 1.0})
-#                
-#            print "step %d, train accuracy %g" %(i, train_accuracy)
-#            train_step.run(feed_dict={x:batch_xs, y_:batch_ys, keep_prob:0.5})
-#print "test accuracy %g" % accuracy.eval(feed_dict={x:test_data, y_:test_label, keep_prob:1.0})
+x = tf.placeholder("float", [None, 230000])
+#print(x.dtype)
+#The target output classes y_ will also consist of a 2d tensor, where each row is a one-hot 
+#2-dimensional vector indicating which digit class (0 to 1) the corresponding whether character
+#belongs to the same writer.
+y_ = tf.placeholder("float", [None, 1])
+
+# variables
+W = tf.Variable(tf.zeros([230000,1]))
+b = tf.Variable(tf.zeros([1]))
+
+
+y = tf.nn.softmax(tf.matmul(x,W) + b)
+
+# first convolutinal layer
+w_conv1 = weight_variable([5, 5, 1, 32])
+b_conv1 = bias_variable([32])
+
+x_image = tf.reshape(x, [-1, 230, 1000, 1])
+
+h_conv1 = tf.nn.relu(conv2d(x_image, w_conv1) + b_conv1)
+h_pool1 = max_pool_2x2(h_conv1)
+
+# second convolutional layer
+w_conv2 = weight_variable([5, 5, 32, 64])
+b_conv2 = bias_variable([64])
+
+h_conv2 = tf.nn.relu(conv2d(h_pool1, w_conv2) + b_conv2)
+h_pool2 = max_pool_2x2(h_conv2)
+
+# densely connected layer
+w_fc1 = weight_variable([29*250*64, 1024])
+b_fc1 = bias_variable([1024])
+
+h_pool2_flat = tf.reshape(h_pool2, [-1, 29*250*64])
+h_fc1 = tf.nn.relu(tf.matmul(h_pool2_flat, w_fc1) + b_fc1)
+
+# dropout
+keep_prob = tf.placeholder("float")
+h_fc1_drop = tf.nn.dropout(h_fc1, keep_prob)
+
+# readout layer
+w_fc2 = weight_variable([1024, 1])
+b_fc2 = bias_variable([1])
+
+y_conv = tf.nn.softmax(tf.matmul(h_fc1_drop, w_fc2) + b_fc2)
+
+# train and evaluate the model
+cross_entropy = -tf.reduce_sum(y_*tf.log(y_conv))
+train_step = tf.train.GradientDescentOptimizer(1e-3).minimize(cross_entropy)
+#train_step = tf.train.AdagradOptimizer(1e-5).minimize(cross_entropy)
+correct_prediction = tf.equal(tf.argmax(y_conv, 1), tf.argmax(y_, 1))
+accuracy = tf.reduce_mean(tf.cast(correct_prediction, "float"))
+
+sess.run(tf.initialize_all_variables())
+
+for i in range(1000):
+	    batch_xs, batch_ys = next_batch(i, 100)
+	    batch_xs = batch_xs.astype(np.float32)
+	    batch_ys = batch_ys.astype(np.float32)
+	#iter_ = data_iterator()
+ #       while True:
+ #           # get a batch of data
+ #           batch_xs, batch_ys = iter_.next()
+ #           print (np.shape(batch_xs))
+ #           print(np.shape(batch_ys))
+ #           
+            
+	    if i%100 == 0:
+              train_accuracy = accuracy.eval(feed_dict={
+        x:batch_xs, y_: batch_ys, keep_prob: 1.0})
+              print("step %d, training accuracy %g"%(i, train_accuracy))
+            train_step.run(feed_dict={x: batch_xs, y_: batch_ys, keep_prob: 0.5})
+
+	    #feed_dict={x: batch_xs, y_: batch_ys}
+	    #print(feed_dict)
+
+	    #sess.run(train_step, feed_dict)
+	    #train_step.run(feed_dict)
+            train_accuracy = accuracy.eval(feed_dict={x: batch_xs, y_: batch_ys, keep_prob: 1.0})
+                
+            print "step %d, train accuracy %g" %(i, train_accuracy)
+            train_step.run(feed_dict={x:batch_xs, y_:batch_ys, keep_prob:0.5})
+print "test accuracy %g" % accuracy.eval(feed_dict={x:test_data, y_:test_label, keep_prob:1.0})

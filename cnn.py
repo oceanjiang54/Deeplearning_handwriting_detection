@@ -13,9 +13,33 @@ except ImportError:
 import tensorflow as tf
 import os
 import time
+import datetime
 import numpy as np
 import string
 from tensorflow.contrib import learn
+import re
+
+#data clear: make all vobal lowercase, remove punctuation, number
+
+def clean_str(string):
+    """
+    Tokenization/string cleaning for all datasets except for SST.
+    Original taken from https://github.com/yoonkim/CNN_sentence/blob/master/process_data.py
+    """
+    string = re.sub(r"[^A-Za-z0-9(),!?\'\`]", " ", string)
+    string = re.sub(r"\'s", " \'s", string)
+    string = re.sub(r"\'ve", " \'ve", string)
+    string = re.sub(r"n\'t", " n\'t", string)
+    string = re.sub(r"\'re", " \'re", string)
+    string = re.sub(r"\'d", " \'d", string)
+    string = re.sub(r"\'ll", " \'ll", string)
+    string = re.sub(r",", " , ", string)
+    string = re.sub(r"!", " ! ", string)
+    string = re.sub(r"\(", " \( ", string)
+    string = re.sub(r"\)", " \) ", string)
+    string = re.sub(r"\?", " \? ", string)
+    string = re.sub(r"\s{2,}", " ", string)
+    return string.strip().lower()
 
 def batch_iter(data, batch_size, num_epochs, shuffle=True):
     """
@@ -35,25 +59,20 @@ def batch_iter(data, batch_size, num_epochs, shuffle=True):
             start_index = batch_num * batch_size
             end_index = min((batch_num + 1) * batch_size, data_size)
             yield shuffled_data[start_index:end_index]
-#data clear: make all vobal lowercase, remove punctuation, number
 def normalize_text(texts):
     # Lower case
     texts = [x.lower() for x in texts]
-
     # Remove punctuation
     texts = [''.join(c for c in x if c not in string.punctuation) for x in texts]
-
     # Remove numbers
     texts = [''.join(c for c in x if c not in '0123456789') for x in texts]
-
     # Remove stopwords
-#    texts = [' '.join([word for word in x.split() if word not in (stops)]) for x in texts]
-
+    # texts = [' '.join([word for word in x.split() if word not in (stops)]) for x in texts]
     # Trim extra whitespace
     texts = [' '.join(x.split()) for x in texts]
     
     return(texts)
-    
+#============================Loading xml=====================================================    
 #extract the author's id and text in xml file
 #open xml file
 tree = ET.ElementTree(file='/Users/rongdilin/Desktop/cse610/proj2/pan12-sexual-predator-identification-training-corpus-2012-05-01/pan12-sexual-predator-identification-training-corpus-2012-05-01.xml')
@@ -102,7 +121,21 @@ for i in xrange(len(author)):
 positive_labels = [[0, 1] for _ in positive_file]
 negative_labels = [[1, 0] for _ in negative_file]
 y = np.concatenate([positive_labels, negative_labels], 0)
-
+#split by words
+x_text = positive_file + negative_file
+x_text_train = []
+#print type(x_text[0])
+#a test
+#ii = 0
+#for sent in x_text:
+#    ii += 1
+#    if ii > 50:
+#        break
+#    print sent
+for sent in x_text:
+    x_text_train.append(clean_str(sent))
+#x_text = [clean_str(sent) for sent in x_text]
+x_text = x_text_train
 #ats = zip(author, text)
 #atDict = dict((author, text) for author, text in ats)
 
@@ -116,7 +149,7 @@ for x in xrange (len(text)):
 max_document_length = max(length)
 vocab_processor = learn.preprocessing.VocabularyProcessor(max_document_length)
 #x = np.array(list(vocab_processor.fit_transform(text)))
-
+#=====================================Training Epoch====================================================
 # Placeholders for input, output and dropout
 #sequence_length – The length of our sentences. Remember that we padded all our sentences to have the same length (59 for our data set).
 #num_classes – Number of classes in the output layer, two in our case (positive and negative).
@@ -189,3 +222,69 @@ with tf.name_scope("accuracy"):
     correct_predictions = tf.equal(predictions, tf.argmax(input_y, 1))
     accuracy = tf.reduce_mean(tf.cast(correct_predictions, "float"), name="accuracy")
 
+sess = tf.Session()
+sess.run(tf.initialize_all_variables())
+# Define Training procedure
+global_step = tf.Variable(0, name="global_step", trainable=False)
+optimizer = tf.train.AdamOptimizer(1e-3)
+grads_and_vars = optimizer.compute_gradients(loss)
+train_op = optimizer.apply_gradients(grads_and_vars, global_step=global_step)
+# Keep track of gradient values and sparsity (optional)
+grad_summaries = []
+for g, v in grads_and_vars:
+    if g is not None:
+        grad_hist_summary = tf.histogram_summary("{}/grad/hist".format(v.name), g)
+        sparsity_summary = tf.scalar_summary("{}/grad/sparsity".format(v.name), tf.nn.zero_fraction(g))
+        grad_summaries.append(grad_hist_summary)
+        grad_summaries.append(sparsity_summary)
+grad_summaries_merged = tf.merge_summary(grad_summaries)
+ # Output directory for models and summaries
+timestamp = str(int(time.time()))
+out_dir = os.path.abspath(os.path.join(os.path.curdir, "runs", timestamp))
+print("Writing to {}\n".format(out_dir))
+# Summaries for loss and accuracy
+loss_summary = tf.scalar_summary("loss", loss)
+acc_summary = tf.scalar_summary("accuracy", accuracy)
+# Train Summaries
+train_summary_op = tf.merge_summary([loss_summary, acc_summary, grad_summaries_merged])
+train_summary_dir = os.path.join(out_dir, "summaries", "train")
+train_summary_writer = tf.train.SummaryWriter(train_summary_dir, sess.graph)
+
+
+batch_size = 64
+num_epochs = 200
+evaluate_every = 100
+checkpoint_every = 100
+batches = batch_iter(zip(x_text, y), batch_size, num_epochs)
+outfile=open('record.txt','w')
+
+# Training loop. For each batch...
+index = 1
+for batch in batches:
+    index += 1
+    x_batch, y_batch = zip(*batch)
+#    _, step, summaries, loss, accuracy = sess.run(
+#                [train_op, global_step, train_summary_op, cnn.loss, cnn.accuracy],
+#                feed_dict)
+
+    _, step, summaries, loss, accuracy = sess.run([train_op, global_step, train_summary_op, loss, accuracy],
+             feed_dict = {input_x: x_batch, input_y: y_batch, dropout_keep_prob: 0.5})
+    time_str = datetime.datetime.now().isoformat()
+    print("{}: step {}, loss {:g}, acc {:g}".format(time_str, step, loss, accuracy))
+    train_summary_writer.add_summary(summaries, step)
+    if index % 100 == 0:
+        result = sess.run(accuracy, feed_dict = {input_x: x_batch, input_y: y_batch, dropout_keep_prob: 1.0})
+        print i, result
+        outfile.write('%d:%f\n'%(i,result))
+outfile.close()
+    #current_step = tf.train.global_step(sess, global_step)
+            #if current_step % evaluate_every == 0:
+                #print("\nEvaluation:")
+                #dev_step(x_test, y_test, writer=dev_summary_writer)
+                #print("")
+#            if current_step % checkpoint_every == 0:
+#                path = saver.save(sess, checkpoint_prefix, global_step=current_step)
+#                print("Saved model checkpoint to {}\n".format(path))
+            
+            
+        

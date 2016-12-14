@@ -76,31 +76,45 @@ def normalize_text(texts):
 #extract the author's id and text in xml file
 #open xml file
 tree = ET.ElementTree(file='/Users/rongdilin/Desktop/cse610/proj2/pan12-sexual-predator-identification-training-corpus-2012-05-01/pan12-sexual-predator-identification-training-corpus-2012-05-01.xml')
+tree_test = ET.ElementTree(file='/Users/rongdilin/Desktop/cse610/proj2/pan12-sexual-predator-identification-test-corpus-2012-05-21/pan12-sexual-predator-identification-test-corpus-2012-05-17.xml')
 #get the author and text in the xml
 author = []
 text = []
+author_test = []
+text_test = []
 for elem in tree.iter(tag = 'author'):
     author.append(elem.text)
 for elem in tree.iter(tag = 'text'):
     text.append(elem.text)
-
+for elem in tree_test.iter(tag = 'author'):
+    author_test.append(elem.text)
+for elem in tree_test.iter(tag = 'text'):
+    text_test.append(elem.text)
 #data clear    
 #author = normalize_text(author)
 #text = normalize_text(text)
 
 author_text = [author, text]
-
+author_text_test = [author_test, text_test]
 #separation of predators in positive file
 positive_dict = {}
 negative_dict = {}
 positive_file = []
 negative_file = []
 predators = []
+positive_dict_test = {}
+negative_dict_test = {}
+positive_file_test = []
+negative_file_test = []
+predators_test = []
 f = open('/Users/rongdilin/Desktop/cse610/proj2/pan12-sexual-predator-identification-training-corpus-2012-05-01/pan12-sexual-predator-identification-training-corpus-predators-2012-05-01.txt', 'r')
+f_test = open('/Users/rongdilin/Desktop/cse610/proj2/pan12-sexual-predator-identification-test-corpus-2012-05-21/pan12-sexual-predator-identification-groundtruth-problem1.txt', 'r')
+
 #remove '/n'
 for line in f.readlines():
     predators.append(line.strip('\n'))
-
+for line in f_test.readlines():
+    predators_test.append(line.strip('\n'))
 #positive dict: predator_id, text_list
 #negative_dict: normal_id, text_list
 for i in xrange(len(author)):
@@ -117,13 +131,32 @@ for i in xrange(len(author)):
            negative_dict[author[i]] = []
        negative_dict.get(author[i]).append(text[i])
        negative_file.append(text[i])
+for i in xrange(len(author_test)):
+   count = 0
+   for predator in predators_test: 
+       if predator == author_test[i]:
+           if(author_test[i] not in positive_dict_test):
+               positive_dict_test[author[i]] = []
+           positive_dict_test.get(author_test[i]).append(text_test[i])
+           positive_file_test.append(text_test[i])
+           count += 1
+   if count == 0 : 
+       if(author_test[i] not in negative_dict_test):
+           negative_dict_test[author_test[i]] = []
+       negative_dict_test.get(author_test[i]).append(text_test[i])
+       negative_file_test.append(text_test[i])
 # Generate labels
 positive_labels = [[0, 1] for _ in positive_file]
 negative_labels = [[1, 0] for _ in negative_file]
 y = np.concatenate([positive_labels, negative_labels], 0)
+positive_labels_test = [[0, 1] for _ in positive_file_test]
+negative_labels_test = [[1, 0] for _ in negative_file_test]
+y_test = np.concatenate([positive_labels_test, negative_labels_test], 0)
 #split by words
 x_text = positive_file + negative_file
 x_text_train = []
+x_text_test = positive_file_test + negative_file_test
+x_text_train_test = []
 #print type(x_text[0])
 #a test
 #ii = 0
@@ -134,8 +167,11 @@ x_text_train = []
 #    print sent
 for sent in x_text:
     x_text_train.append(clean_str(sent))
+for sent in x_text_test:
+    x_text_train_test.append(clean_str(sent))
 #x_text = [clean_str(sent) for sent in x_text]
 x_text = x_text_train
+x_text_test = x_text_train_test
 #ats = zip(author, text)
 #atDict = dict((author, text) for author, text in ats)
 
